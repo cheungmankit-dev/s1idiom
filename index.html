@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中一級中國語文科 - 成語自學系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; background-color: #f3f4f6; }
+        .tab-btn.active { border-bottom: 4px solid #3b82f6; color: #1d4ed8; font-weight: bold; }
+        .sub-btn.active { background-color: #3b82f6; color: white; }
+        .idiom-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        /* 自訂滾動條 */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px;}
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen relative text-gray-800">
+
+    <header class="bg-blue-800 text-white py-6 shadow-md">
+        <div class="max-w-5xl mx-auto px-4">
+            <h1 class="text-3xl font-bold">救恩書院 - 中一級成語自學系統</h1>
+            <p class="mt-2 text-blue-200">救恩書院中文科精心設計 ｜ 結合《重編國語辭典修訂本》2021 典故規範</p>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto mt-8 bg-white rounded-lg shadow-lg overflow-hidden mb-10">
+        <div class="flex border-b bg-gray-50">
+            <button onclick="selectTerm(1)" id="tab-1" class="tab-btn flex-1 py-4 text-center text-gray-600 hover:bg-gray-100 transition text-lg">第一學期</button>
+            <button onclick="selectTerm(2)" id="tab-2" class="tab-btn flex-1 py-4 text-center text-gray-600 hover:bg-gray-100 transition text-lg">第二學期</button>
+            <button onclick="selectTerm(3)" id="tab-3" class="tab-btn flex-1 py-4 text-center text-gray-600 hover:bg-gray-100 transition text-lg">第三學期</button>
+        </div>
+
+        <div class="p-6">
+            <div class="flex flex-wrap gap-3 mb-6" id="mode-selector">
+                <button onclick="selectMode('study')" id="mode-study" class="sub-btn px-5 py-2.5 rounded-md bg-gray-200 text-gray-700 hover:bg-blue-500 hover:text-white transition font-bold">📖 成語自學區</button>
+                <button onclick="selectMode('test1')" id="mode-test1" class="sub-btn px-5 py-2.5 rounded-md bg-gray-200 text-gray-700 hover:bg-blue-500 hover:text-white transition font-bold">📝 測一：字詞辨識</button>
+                <button onclick="selectMode('test2')" id="mode-test2" class="sub-btn px-5 py-2.5 rounded-md bg-gray-200 text-gray-700 hover:bg-blue-500 hover:text-white transition font-bold">📝 測二：成語配對</button>
+                <button onclick="selectMode('test3')" id="mode-test3" class="sub-btn px-5 py-2.5 rounded-md bg-gray-200 text-gray-700 hover:bg-blue-500 hover:text-white transition font-bold">📝 測三：成語應用</button>
+            </div>
+
+            <div id="content-area" class="min-h-[400px]">
+                </div>
+        </div>
+    </main>
+
+    <div id="idiom-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 relative overflow-y-auto max-h-[90vh]">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-3xl font-bold transition">&times;</button>
+            <h2 id="modal-word" class="text-3xl font-extrabold text-blue-800 mb-4 border-b-2 border-blue-200 pb-2"></h2>
+            <div class="space-y-4 text-lg text-gray-800">
+                <p><strong class="text-blue-600">解釋：</strong> <span id="modal-exp"></span></p>
+                <p><strong class="text-blue-600">出處：</strong> <span id="modal-origin" class="text-gray-600 text-base"></span></p>
+                <div class="bg-blue-50 p-5 rounded-lg border border-blue-100 mt-4 shadow-inner">
+                    <p><strong class="text-blue-800 block mb-2 text-xl">📖 歷史典故：</strong> <span id="modal-story" class="leading-relaxed"></span></p>
+                </div>
+            </div>
+            <div class="mt-6 text-center">
+                <button onclick="closeModal()" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-md">明白，關閉視窗</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // ⚙️ 張SIR設定區 (請將 GAS URL 貼在下方)
+        // ==========================================
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzd_o7lxerztdh1Bx6JZe-JYIfcHtxQIbGYmvovvjkNYwttQhahJSNFazWQVHBtzveH/exec"; 
+        
+        // 儲存學生資料，方便重做測驗時不用重填
+        let currentStudent = { className: '', classNo: '', studentName: '' };
+
+        // ==========================================
+        // 📚 完整資料庫 (第一至第三學期 60 個成語 + 題庫)
+        // ==========================================
+        const termData = {
+            1: {
+                title: "第一學期",
+                idioms: [
+                    { word: "一字之師", exp: "藉由改正一個字而值得尊為老師的人。", origin: "宋．計有功《唐詩紀事》", story: "唐代僧人齊己寫了首〈早梅〉詩，其中有「前村深雪裡，昨夜數枝開」。詩人鄭谷看後說：「數枝不能算是早梅，不如改為一枝。」齊己聽了佩服得向他下拜，後人便尊稱鄭谷為齊己的「一字之師」。" },
+                    { word: "一言半語", exp: "形容言詞極少。", origin: "元．關漢卿《救風塵》", story: "「一言」與「半語」皆形容極少的言語或片面之詞。在古典文學中常指不漏半點口風或只言片語的交待。" },
+                    { word: "一星半點", exp: "形容數量極少。", origin: "元．關漢卿《竇娥冤》", story: "「星」與「點」在古代皆用來指秤物時極小的度量單位，後來演變成形容數量極其微少、零碎，微不足道。" },
+                    { word: "一視同仁", exp: "平等待遇，毫無歧視。", origin: "唐．韓愈〈原道〉", story: "唐代大文豪韓愈在文章中提出，古代聖人治理天下時，將所有百姓以及四方的異族都同等看待，像父母對待子女一樣，毫無歧視與偏見。" },
+                    { word: "一勞永逸", exp: "辛苦一次，以後就可以永久安逸。", origin: "漢．班固〈封燕然山銘〉", story: "源於漢代學者的論述，意指在開始時投入足夠的努力把事情徹底做好，以後就可以一勞永逸，不用反覆修補或重新操勞。" },
+                    { word: "一絲不苟", exp: "做事認真，一點也不敷衍。", origin: "清．吳敬梓《儒林外史》", story: "「苟」指馬虎、隨便。形容人做事極其認真細緻，連最細微、最不顯眼的地方也毫不馬虎、絕不敷衍了事。" },
+                    { word: "一鼓作氣", exp: "比喻做事時要趁著初起時的勇氣去做才容易成功。", origin: "《左傳．莊公十年》", story: "齊魯長勺之戰中，魯國曹劌指出：戰鬥靠的是士氣。敲第一通鼓時士兵勇氣最旺盛，第二通鼓時士氣開始衰退，第三通鼓時士氣就竭盡了。因此要趁初起時的銳氣一氣呵成。" },
+                    { word: "一諾千金", exp: "形容承諾信用高，一旦答應了必定做到。", origin: "《史記．季布欒布列傳》" , story: "秦末楚國人季布生性誠實守信，只要他答應別人的事，不論多難都一定會辦到。當時楚國流傳一句話：「得黃金百斤，不如得季布一諾。」" },
+                    { word: "一臂之力", exp: "指一部分的力量，通常指從旁協助的力量。", origin: "元．李壽卿《伍員吹簫》", story: "「一臂」指一隻胳膊的力量。在文學上用來比喻從旁給予的一份協助、支援或微薄的幫忙。" },
+                    { word: "一竅不通", exp: "比喻人昏昧不明事理，或對某事完全不懂。", origin: "《呂氏春秋．貴直論》", story: "商朝末年紂王昏庸無道，忠臣比干苦口婆心勸諫。紂王大怒說：「我聽說聖人的心臟有七個竅（孔洞），我要親自看看你的心是不是這樣！」後用來比喻對某種學問或事情完全不懂。" },
+                    { word: "一籌莫展", exp: "一點計策也施展不出來。", origin: "清．孔尚任《桃花扇》", story: "「籌」是古代用來計算數目或策劃計謀的竹籤。當手上一根籌碼也無法展現時，就代表一點計策、辦法也施展不出來，毫無對策。" },
+                    { word: "三三兩兩", exp: "三兩個聚在一起。形容人數不多。", origin: "宋．郭茂倩《樂府詩集》", story: "形容人們零零散散、三個兩個地聚集或同行，表示人數不多、秩序較為放鬆的景象。" },
+                    { word: "下筆成篇", exp: "揮筆為文，即刻成篇。形容才思敏捷。", origin: "三國魏．曹植〈王仲宣誄〉", story: "三國時魏國曹植才華洋溢，他形容好友王粲文思敏捷，一動筆就能立刻寫出結構完整、文辭優美的漂亮文章，不需反覆修改。" },
+                    { word: "大惑不解", exp: "十分糊塗、迷惑，不懂其中的道理。", origin: "《莊子．天地》", story: "莊子在文章中指出，天下人往往在大道理上感到迷惑，卻不自知。後來演變成形容人對某件事情感到非常疑惑，怎麼想也無法理解。" },
+                    { word: "大發雷霆", exp: "比喻發大脾氣，大聲責罵。", origin: "《三國演義》", story: "雷霆代表巨大的雷聲。古人常用天降雷霆來比喻帝王或長官暴跳如雷、大發脾氣，大聲斥責下屬的威嚴場面。" },
+                    { word: "才高八斗", exp: "比喻才學極高。", origin: "宋．無名氏《釋常談》", story: "南朝宋文人謝靈運曾極力稱讚曹植的才華，他說：「天下才學總共有一石（即十斗），曹子建（曹植）一個人就獨佔了八斗，我得一斗，自古以來的其餘人共分一斗。」" },
+                    { word: "口乾舌燥", exp: "形容說話極多，非常疲乏。", origin: "三國魏．曹植〈善哉行〉", story: "曹植在詩中描寫長途跋涉或長時間爭辯、勸說，以致口角乾涸、舌頭燥熱。後多用來形容說話太多、極度疲勞的樣子。" },
+                    { word: "千難萬險", exp: "形容困難和危險極多。", origin: "元．楊景賢《西游記》", story: "在《西遊記》等神魔或歷史冒險小說中，經常用「千難萬險」來形容主角在前進的道路上，必須克服重重的困難與無數的生命危險。" },
+                    { word: "亡羊補牢", exp: "丟失了羊，就趕快修補羊圈。比喻犯錯後及時更正。", origin: "《戰國策．楚策四》", story: "戰國時楚國大臣莊辛勸諫楚襄王，指出：「看到兔子才回頭看獵犬，還不算晚；羊逃跑了才趕緊修補羊圈，也不算遲。」意思只要及時補救，就能防止損失擴大。" },
+                    { word: "小題大做", exp: "比喻將小事當作大事來處理。", origin: "清．曹雪芹《紅樓夢》", story: "形容人們把本來微不足道、不值一提的小事情，故意當作重大的事件來誇張、擴大處理，帶有不必要的浪費或小題大作之意。" }
+                ],
+                test1: [
+                    { q: "一＿之師", options: ["字", "自", "治", "次"], ans: 0, base: "一字之師" },
+                    { q: "＿字之師", options: ["一", "以", "已", "易"], ans: 0, base: "一字之師" },
+                    { q: "一絲不＿", options: ["狗", "苟", "夠", "垢"], ans: 1, base: "一絲不苟" },
+                    { q: "一＿不苟", options: ["斯", "思", "絲", "撕"], ans: 2, base: "一絲不苟" },
+                    { q: "一＿作氣", options: ["股", "古", "骨", "鼓"], ans: 3, base: "一鼓作氣" },
+                    { q: "一鼓作＿", options: ["氣", "汽", "器", "棄"], ans: 0, base: "一鼓作氣" },
+                    { q: "一諾千＿", options: ["金", "斤", "筋", "巾"], ans: 0, base: "一諾千金" },
+                    { q: "一＿千金", options: ["若", "弱", "諾", "惹"], ans: 2, base: "一諾千金" },
+                    { q: "一＿不通", options: ["殼", "敲", "竅", "俏"], ans: 2, base: "一竅不通" },
+                    { q: "一＿莫展", options: ["愁", "籌", "仇", "酬"], ans: 1, base: "一籌莫展" },
+                    { q: "一籌莫＿", options: ["斬", "展", "輾", "戰"], ans: 1, base: "一籌莫展" },
+                    { q: "下筆成＿", options: ["編", "騙", "篇", "扁"], ans: 2, base: "下筆成篇" },
+                    { q: "大惑不＿", options: ["解", "姐", "借", "屆"], ans: 0, base: "大惑不解" },
+                    { q: "才高八＿", options: ["抖", "斗", "陡", "豆"], ans: 1, base: "才高八斗" },
+                    { q: "＿高八斗", options: ["材", "財", "裁", "才"], ans: 3, base: "才高八斗" },
+                    { q: "亡羊補＿", options: ["勞", "撈", "老", "牢"], ans: 3, base: "亡羊補牢" },
+                    { q: "口＿舌燥", options: ["干", "乾", "趕", "竿"], ans: 1, base: "口乾舌燥" },
+                    { q: "一星半＿", options: ["點", "典", "店", "墊"], ans: 0, base: "一星半點" },
+                    { q: "一＿同仁", options: ["是", "示", "視", "事"], ans: 2, base: "一視同仁" },
+                    { q: "千＿萬險", options: ["南", "男", "難", "欄"], ans: 2, base: "千難萬險" }
+                ],
+                test3: [
+                    { q: "他做事總是____，連最微小的細節也不放過。", options: ["一視同仁", "一言半語", "一絲不苟", "三三兩兩"], ans: 2, base: "一絲不苟" },
+                    { q: "這項會計工作要求極高，必須保持____的態度。", options: ["一籌莫展", "小題大做", "一絲不苟", "口乾舌燥"], ans: 2, base: "一絲不苟" },
+                    { q: "老師對所有學生都____，絕對不會偏袒任何人。", options: ["一視同仁", "一星半點", "才高八斗", "亡羊補牢"], ans: 0, base: "一視同仁" },
+                    { q: "既然準備好了，我們就____把這項任務完成吧！", options: ["小題大做", "一鼓作氣", "口乾舌燥", "一竅不通"], ans: 1, base: "一鼓作氣" },
+                    { q: "他向來____，答應別人的事從來沒有食言過。", options: ["大發雷霆", "大惑不解", "千難萬險", "一諾千金"], ans: 3, base: "一諾千金" },
+                    { q: "做生意講求誠信，____的人自然會受客人歡迎。", options: ["一言半語", "才高八斗", "一諾千金", "一勞永逸"], ans: 2, base: "一諾千金" },
+                    { q: "經過這次教訓，我們應該____，避免同樣錯誤再次發生。", options: ["亡羊補牢", "一勞永逸", "下筆成篇", "一籌莫展"], ans: 0, base: "亡羊補牢" },
+                    { q: "哥哥不僅讀書厲害，寫作更是____，經常得獎。", options: ["下筆成篇", "一字之師", "一星半點", "口乾舌燥"], ans: 0, base: "下筆成篇" },
+                    { q: "李先生對電腦維修____，遇到當機只能請工程師。", options: ["才高八斗", "一竅不通", "三三兩兩", "一視同仁"], ans: 1, base: "一竅不通" },
+                    { q: "面對這台新出的機器，連老師傅也覺得____。", options: ["一臂之力", "一竅不通", "大發雷霆", "一勞永逸"], ans: 1, base: "一竅不通" },
+                    { q: "雖然計畫困難重重，但他還是希望能出一____。", options: ["臂之力", "勞永逸", "視同仁", "題大做"], ans: 0, base: "一臂之力" },
+                    { q: "他為了一點小事就____，讓大家都感到很害怕。", options: ["一絲不苟", "大發雷霆", "亡羊補牢", "才高八斗"], ans: 1, base: "大發雷霆" },
+                    { q: "面對這個突如其來的難題，大家都____，不知該怎麼辦。", options: ["一籌莫展", "一鼓作氣", "下筆成篇", "三三兩兩"], ans: 0, base: "一籌莫展" },
+                    { q: "為了這點微不足道的小失誤，你未免太____了吧！", options: ["小題大做", "千難萬險", "大惑不解", "亡羊補牢"], ans: 0, base: "小題大做" },
+                    { q: "如果現在能把地基打好，日後就能____，不用再維修了。", options: ["一視同仁", "一勞永逸", "一言半語", "才高八斗"], ans: 1, base: "一勞永逸" },
+                    { q: "你對他那麼好，他卻恩將仇報，真令人____。", options: ["大發雷霆", "大惑不解", "一籌莫展", "一竅不通"], ans: 1, base: "大惑不解" }
+                ]
+            },
+            2: {
+                title: "第二學期",
+                idioms: [
+                    { word: "井底之蛙", exp: "比喻見識淺薄的人。", origin: "《莊子．秋水》", story: "莊子寓言中，一口廢井底的青蛙對東海大鱉炫耀自己住處的舒適，大鱉便告訴牠大海的廣闊與深邃，青蛙聽完目瞪口呆，驚覺自己無知。比喻見識淺陋、眼界狹小的人。" },
+                    { word: "天壤之別", exp: "比喻差別極大。", origin: "晉．葛洪《抱朴子》", story: "「天」與「壤（地）」之間的距離極其遙遠。晉代葛洪以此形容兩者之間的差別、優劣或地位相去極遠，有如天與地一般。" },
+                    { word: "五體投地", exp: "比喻極為欽佩、折服。", origin: "唐．玄奘《大唐西域記》", story: "源於古印度佛教中最恭敬的致敬儀式，行禮時雙膝、雙肘及頭部這五個身體部位皆頂禮著地。後引申為對某人的才華或品德佩服到了極點。" },
+                    { word: "不可開交", exp: "無法解決、結束。形容情況嚴重。", origin: "清．曹雪芹《紅樓夢》", story: "「開交」指解開、結束。在《紅樓夢》等小說中，常用來形容事情繁重繁忙，或矛盾爭吵嚴重到無法收拾、無法擺脫的程度。" },
+                    { word: "不言而喻", exp: "事態明顯，不待說明即可明白。", origin: "《孟子．盡心上》", story: "孟子指出，君子內心的仁義禮智等美德自然會流露在面容與背影上。後用來指事情的道理非常明顯，根本不需要用言語多加說明，大家也能心領神會。" },
+                    { word: "不恥下問", exp: "不以向身分較低微、或是學問較淺陋的人求教為羞恥。", origin: "《論語．公冶長》", story: "孔子讚揚衛國大夫孔圉，指他聰明又愛學習，而且從不以向地位比自己低微、或是學問比自己淺陋的人請教為羞恥，這才是真正的治學態度。" },
+                    { word: "不倫不類", exp: "形容不像樣或不合適。", origin: "清．曹雪芹《紅樓夢》", story: "形容事物的風格、打扮或言行舉止不三不四、不成體統，或者跟本身的身分非常不配襯，顯得不倫不類。" },
+                    { word: "不假思索", exp: "不用費心思考。", origin: "宋．黃榦《黃御史集》", story: "「假」是憑藉、依靠的意思。形容人反應極其敏捷，不需要花費時間心思去思考，就能立刻做出正確、熟練的決定或行動。" },
+                    { word: "不寒而慄", exp: "形容內心恐懼至極。", origin: "《史記．酷吏列傳》", story: "漢代酷吏義縱執法嚴酷狠辣，當地的豪強罪犯雖然在溫暖的天氣裡，想到他的鐵腕手段也會嚇得全身發抖。形容內心恐懼害怕到了極點。" },
+                    { word: "日積月累", exp: "逐日逐月長時間不斷的累積。", origin: "宋．朱熹《答周益公書》", story: "大儒朱熹在書信中提到為學的方法，指出知識與學問是需要通過一天天、一月月的長時間不斷累積，日子久了，效果自然會變得非常顯著。" },
+                    { word: "手不釋卷", exp: "手裡拿著書本不放。形容勤奮好學。", origin: "《三國志》裴松之注", story: "三國時吳國大將呂蒙原本不愛讀書，孫權勸學後他大有改變，甚至在行軍打仗時手裡也經常拿著書本捨不得放開。形容人讀書勤奮，好學不倦。" },
+                    { word: "毛遂自薦", exp: "比喻自告奮勇，自我推薦。", origin: "《史記．平原君虞卿列傳》", story: "戰國時秦軍圍攻趙國都城，平原君打算挑選文武門客前往楚國求援。門客毛遂主動站出來自我推薦。到了楚國，毛遂憑藉過人膽識成功說服楚王結盟，解救了趙國。" },
+                    { word: "火樹銀花", exp: "形容燈火通明、絢麗燦爛的景象。", origin: "唐．蘇味道〈正月十五夜〉", story: "唐代詩人描寫長安城元宵節通宵開坊市的盛況，滿街的花燈和煙火絢麗燦爛，把夜空照耀得如同火樹與銀花般明亮，非常熱鬧。" },
+                    { word: "心驚膽顫", exp: "形容十分害怕。", origin: "元．無名氏《薩真人夜斷碧桃花》", story: "「顫」是發抖的意思。形容人遇到極度驚恐或危險的突發狀況時，內心驚慌，嚇得心跳加速、身體與四肢不斷顫抖的樣子。" },
+                    { word: "水洩不通", exp: "連水都無法流通。比喻擁擠不堪或防備嚴密。", origin: "宋．釋道原《景德傳燈錄》", story: "原為禪宗術語，後演變成形容某個地方防備極其嚴密，或者人潮、車流極其擁擠，誇張到連一滴水都無法排洩過去。" },
+                    { word: "巧奪天工", exp: "形容技藝巧妙，勝過天然。", origin: "元．趙孟頫〈贈吳子日〉", story: "元代大書畫家趙孟頫在詩中讚美人工製作的器物。形容人的精湛技藝與手工極其巧妙，製作出來的藝術品精美得甚至勝過了天然形成的景致。" },
+                    { word: "功虧一簣", exp: "比喻事情只差最後一步而未能完成。", origin: "《書經．旅獒》", story: "「簣」是盛土的竹筐。大禹告誡後人，堆積一座九仞高的土山，如果因為缺少最後那一筐土而停工，就無法大功告成。比喻事情只差最後的關鍵一步卻不幸失敗。" },
+                    { word: "古色古香", exp: "形容具有古舊典雅色彩和情調的事物。", origin: "宋．趙希鵠《洞天清祿集》", story: "宋代文人專門用來形容珍貴的古代器物、書畫或建築等，具有古舊、典雅，且富有歷史情調的獨特色彩與文化韻味。" },
+                    { word: "目不暇給", exp: "形容景物繁多，來不及觀賞。", origin: "清．鄭燮《濰縣署中與舍弟墨第二書》", story: "「暇」是空閒的意思。揚州八怪之一的鄭板橋在書信中形容，眼前的美景、精彩事物或藝術珍品實在太多，眼睛不停觀賞都來不及看，令人目不暇給。" },
+                    { word: "目瞪口呆", exp: "受驚或受窘以致神情痴呆的樣子。", origin: "元．無名氏《賺蒯通》", story: "形容人因為突然遭遇極度吃驚、害怕或極其窘迫的場面，一時間大腦一片空白、神情痴呆，眼睛直視、嘴巴張開而說不出話來。" }
+                ],
+                test1: [
+                    { q: "井底之＿", options: ["娃", "瓦", "蛙", "窪"], ans: 2, base: "井底之蛙" },
+                    { q: "天＿之別", options: ["壤", "讓", "嚷", "鑲"], ans: 0, base: "天壤之別" },
+                    { q: "五體＿地", options: ["投", "頭", "骰", "偷"], ans: 0, base: "五體投地" },
+                    { q: "不可開＿", options: ["焦", "膠", "交", "嬌"], ans: 2, base: "不可開交" },
+                    { q: "不恥下＿", options: ["聞", "問", "吻", "穩"], ans: 1, base: "不恥下問" },
+                    { q: "日積月＿", options: ["淚", "類", "雷", "累"], ans: 3, base: "日積月累" },
+                    { q: "手不釋＿", options: ["卷", "劵", "倦", "圈"], ans: 0, base: "手不釋卷" },
+                    { q: "毛＿自薦", options: ["逐", "墜", "遂", "隧"], ans: 2, base: "毛遂自薦" },
+                    { q: "水＿不通", options: ["泄", "歇", "寫", "洩"], ans: 3, base: "水洩不通" },
+                    { q: "巧奪天＿", options: ["工", "公", "功", "攻"], ans: 0, base: "巧奪天工" },
+                    { q: "不假＿索", options: ["思", "施", "絲", "斯"], ans: 0, base: "不假思索" },
+                    { q: "功虧一＿", options: ["櫃", "匱", "簣", "貴"], ans: 2, base: "功虧一簣" },
+                    { q: "心驚膽＿", options: ["戰", "顫", "站", "展"], ans: 1, base: "心驚膽顫" },
+                    { q: "目不＿給", options: ["霞", "暇", "瑕", "遐"], ans: 1, base: "目不暇給" },
+                    { q: "火樹＿花", options: ["銀", "迎", "贏", "螢"], ans: 0, base: "火樹銀花" }
+                ],
+                test3: [
+                    { q: "他見識淺薄，猶如____，不知外面的世界有多大。", options: ["不可開交", "目瞪口呆", "井底之蛙", "不倫不類"], ans: 2, base: "井底之蛙" },
+                    { q: "他們兩人的實力有____，根本無法相比。", options: ["天壤之別", "五體投地", "巧奪天工", "古色古香"], ans: 0, base: "天壤之別" },
+                    { q: "大家對這位專家的學識佩服得____。", options: ["不假思索", "五體投地", "不言而喻", "目不暇給"], ans: 1, base: "五體投地" },
+                    { q: "為了這件事，兩個人吵得____，誰也不肯退讓。", options: ["不可開交", "心驚膽顫", "水洩不通", "手不釋卷"], ans: 0, base: "不可開交" },
+                    { q: "他雖然學問淵博，卻仍能____，令人敬佩。", options: ["毛遂自薦", "不恥下問", "日積月累", "功虧一簣"], ans: 1, base: "不恥下問" },
+                    { q: "看到他那____的打扮，大家都忍不住笑了。", options: ["古色古香", "不倫不類", "巧奪天工", "不言而喻"], ans: 1, base: "不倫不類" },
+                    { q: "那部恐怖片讓人看了____，晚上都不敢關燈睡覺。", options: ["心驚膽顫", "不寒而慄", "目瞪口呆", "火樹銀花"], ans: 1, base: "不寒而慄" },
+                    { q: "知識是需要____的，不能一蹴可幾。", options: ["日積月累", "手不釋卷", "毛遂自薦", "水洩不通"], ans: 0, base: "日積月累" },
+                    { q: "這件藝術品雕刻精細，簡直是____。", options: ["古色古香", "巧奪天工", "火樹銀花", "目不暇給"], ans: 1, base: "巧奪天工" },
+                    { q: "博物館裡的展品實在太多了，令人____。", options: ["目不暇給", "目瞪口呆", "心驚膽顫", "手不釋卷"], ans: 0, base: "目不暇給" },
+                    { q: "這場大雪讓交通大打結，整條馬路擠得____。", options: ["水洩不通", "不可開交", "火樹銀花", "天壤之別"], ans: 0, base: "水洩不通" },
+                    { q: "元宵節燈會的現場____，熱鬧非凡。", options: ["火樹銀花", "不言而喻", "古色古香", "手不釋卷"], ans: 0, base: "火樹銀花" }
+                ]
+            },
+            3: {
+                title: "第三學期",
+                idioms: [
+                    { word: "用武之地", exp: "可以施展武力或才能的地方。", origin: "《晉書．劉頌傳》", story: "諸葛亮在〈隆中對〉和《三國演義》中曾多次分析天下大勢，提到某些地方是戰略要地，可以作為「用武之地」。後多用來比喻可以充分施展個人才華、本領或能力的舞台。" },
+                    { word: "包羅萬象", exp: "內容豐富，應有盡有。", origin: "明．許仲琳《封神演義》", story: "「萬象」指宇宙間一切的事物與現象。形容內容極為豐富廣博，應有盡有，天底下所有的知識、文化或事物都包含在裡面。" },
+                    { word: "民脂民膏", exp: "比喻人民用血汗換來的財產。", origin: "五代蜀．孟昶〈戒石銘〉", story: "五代蜀後主孟昶刻在石頭上警戒官員的官箴寫道：「爾俸爾祿，民脂民膏。」提醒所有官員，他們所享用的俸祿薪水，全都是老百姓辛勤勞動換來的血汗財富，絕不能貪污浪費。" },
+                    { word: "出類拔萃", exp: "形容才能特出，超越眾人。", origin: "《孟子．公孫丑上》", story: "孟子的弟子高度讚美孔子，認為植物高出地面叫「萃」，群體叫「類」。孔子從人類中誕生，其才華與德行卻遠遠超越了同輩眾人，是歷史上最優秀卓越的人。" },
+                    { word: "老成持重", exp: "形容人成熟老練，處事沉著穩重。", origin: "《宋史．种世衡傳》", story: "北宋時期朝廷評價守衛邊疆的名將處事風格。形容人閱歷豐富、經驗老練，做起事情來沉著、穩當且深思熟慮，絕不輕率魯莽。" },
+                    { word: "老馬識途", exp: "比喻經歷豐富的人，做事能依循經驗而成功。", origin: "《韓非子．說林上》", story: "管仲隨齊桓公北伐，回程時大雪封山，軍隊在山谷中迷路。管仲提議放開幾匹老馬，讓牠們在前面走，結果老馬憑著記憶順利帶領大軍走出迷途。比喻有經驗的人能引導成功。" },
+                    { word: "老羞成怒", exp: "因羞愧到了極點而惱火發怒。", origin: "清．李寶嘉《官場現形記》", story: "指人因為自己的缺點、謊言、醜事或失誤被當眾揭穿，心裡羞愧尷尬到了極點，為了掩飾難堪，反而突然轉為極度惱火、憤怒地責罵他人。" },
+                    { word: "耳聞目睹", exp: "親耳聽見，親眼看見。", origin: "漢．劉向《說苑．政理》", story: "指親耳聽見，親眼看見。強調查看或得知的資訊全都是最真實、最直接的第一手現場情況，而非道聽途說的傳言。" },
+                    { word: "耳濡目染", exp: "經常聽到、看到而深受影響。", origin: "唐．韓愈〈清河張君墓誌銘〉", story: "韓愈在文章中形容一個人在充滿文化氣息的環境中長大。比喻人長期生活在某種特定的環境中，經常聽到、看到，不知不覺中受到深刻的薰陶、濡濕與潛移默化的影響。" },
+                    { word: "有恃無恐", exp: "因為有所倚仗而毫不害怕。", origin: "《左傳．僖公二十六年》", story: "齊國軍隊攻打魯國，魯國派展喜去慰勞齊侯。展喜義正辭嚴地表示，魯國依靠著先王留下的盟約與天子的庇護，所以全國上下毫无懼色。後多用來諷刺人因為背後有靠山而膽大妄為。" },
+                    { word: "有備無患", exp: "事先有準備，即可免除後患。", origin: "《書經．說命中》", story: "古代賢臣勸諫君王治國之道，強調只要事先做好充分的防範與防禦準備，當未知的災害、戰爭或突發狀況來臨時，就可以免除後患、平安渡過。" },
+                    { word: "因循守舊", exp: "沿襲舊規，不思變革。", origin: "《漢書．循吏傳》", story: "「因循」是沿襲的意思。指人或政府官員死守著過去的老規矩、舊傳統不放，缺乏創新的勇氣，不願意做出任何適應新時代的變革。" },
+                    { word: "因噎廢食", exp: "比喻因為出了小差錯，而把整件重要的事情都停下來。", origin: "《呂氏春秋．蕩兵》", story: "「噎」是食物卡在喉嚨。比喻有人因為曾經吃東西不小心被卡過一次，竟然從此不吃飯了。諷刺人因為出了一點微小的差錯或挫折，就索性放棄了整件重要的大事。" },
+                    { word: "先睹為快", exp: "以能先看到為快樂。比喻事物的新奇珍貴，令人爭相觀賞。", origin: "唐．韓愈〈與少室李勃書〉", story: "唐代韓愈在書信中表達對珍貴書籍或奇特景物的渴望。形容聽聞有新奇、珍貴或極其精彩的事物出現時，大家都爭先恐後地想要在第一時間親眼觀賞，以此為樂。" },
+                    { word: "任人唯賢", exp: "唯有賢才的人才任用。", origin: "《書經．咸有一德》", story: "上古聖王治國的最高政治原則，指國家在選拔和任用官員時，完全以其個人的才幹、賢能與品德作為唯一標準，絕不看重家族派系或私人關係。" },
+                    { word: "名落孫山", exp: "比喻考試落榜。", origin: "宋．范公偁《過庭錄》", story: "宋代幽默讀書人孫山去參加舉人考試，考中了榜單的最後一名。同鄉託他照顧的兒子卻落榜了。回到鄉後，孫山對同鄉說：「解名盡處是孫山，賢郎更在孫山外。」意思是你兒子的名字在我的後面（即落榜）。" },
+                    { word: "各執一詞", exp: "各自堅持自己的說法。", origin: "明．馮夢龍《醒世恆言》", story: "在古代官府審理案件的小說中，常用來形容涉案的兩方或爭論的各方，每個人都死死堅持自己的立場與說法，各說各的話，使真相一時難以釐清。" },
+                    { word: "交頭接耳", exp: "形容低聲私語。", origin: "元．關漢卿《單刀會》", story: "「交頭」是頭碰著頭，「接耳」是耳朵貼著嘴巴。形容兩個人或多人湊在一起，鬼鬼祟祟、極其小心地低聲說悄悄話、交換秘密的樣子。" },
+                    { word: "衣衫襤褸", exp: "衣服破爛不堪。", origin: "《左傳．宣公十四年》", story: "《左傳》中描寫軍隊戰敗或百姓逃難時的窮困悲慘景象。形容身上的衣服破破爛爛、絲縷下垂，生活過得極其貧困、窘迫與落魄。" },
+                    { word: "江郎才盡", exp: "比喻文思減退。", origin: "南朝梁．鍾嶸《詩品》", story: "南朝著名文學家江淹（江郎）年輕時才華橫溢，晚年時在夢中遇到一位美男子，對方對他說：「我的五色神筆在你那裡借了多年，現在該還給我了。」江淹把筆還給對方後，從此寫詩作文再也沒有佳句。比喻人的文思減退或才華用盡。" }
+                ],
+                test1: [
+                    { q: "用＿之地", options: ["武", "舞", "伍", "五"], ans: 0, base: "用武之地" },
+                    { q: "包羅萬＿", options: ["相", "像", "向", "象"], ans: 3, base: "包羅萬象" },
+                    { q: "出類拔＿", options: ["翠", "粹", "碎", "萃"], ans: 3, base: "出類拔萃" },
+                    { q: "老馬識＿", options: ["圖", "徒", "途", "塗"], ans: 2, base: "老馬識途" },
+                    { q: "有＿無恐", options: ["恃", "侍", "寺", "待"], ans: 0, base: "有恃無恐" },
+                    { q: "有備無＿", options: ["幻", "喚", "換", "患"], ans: 3, base: "有備無患" },
+                    { q: "因噎＿食", options: ["費", "廢", "肺", "吠"], ans: 1, base: "因噎廢食" },
+                    { q: "先睹為＿", options: ["塊", "會", "筷", "快"], ans: 3, base: "先睹為快" },
+                    { q: "名落孫＿", options: ["山", "杉", "衫", "刪"], ans: 0, base: "名落孫山" },
+                    { q: "江郎才＿", options: ["進", "盡", "禁", "晉"], ans: 1, base: "江郎才盡" },
+                    { q: "民＿民膏", options: ["之", "知", "脂", "芝"], ans: 2, base: "民脂民膏" },
+                    { q: "老成持＿", options: ["重", "從", "蟲", "崇"], ans: 0, base: "老成持重" },
+                    { q: "交頭接＿", options: ["以", "已", "耳", "爾"], ans: 2, base: "交頭接耳" },
+                    { q: "衣衫襤＿", options: ["屢", "褸", "履", "旅"], ans: 1, base: "衣衫襤褸" }
+                ],
+                test3: [
+                    { q: "這裡是他施展抱負的____，可以好好發揮。", options: ["用武之地", "名落孫山", "各執一詞", "交頭接耳"], ans: 0, base: "用武之地" },
+                    { q: "這家百貨公司的商品____，你想買什麼都找得到。", options: ["因循守舊", "包羅萬象", "出類拔萃", "衣衫襤褸"], ans: 1, base: "包羅萬象" },
+                    { q: "這些公帑都是____，政府官員怎能隨便浪費？", options: ["耳聞目睹", "民脂民膏", "有備無患", "老馬識途"], ans: 1, base: "民脂民膏" },
+                    { q: "他的成績在班上____，總是名列前茅。", options: ["因噎廢食", "老成持重", "先睹為快", "出類拔萃"], ans: 3, base: "出類拔萃" },
+                    { q: "他做事____，大家都放心把重要的任務交給他。", options: ["老成持重", "有恃無恐", "老羞成怒", "江郎才盡"], ans: 0, base: "老成持重" },
+                    { q: "憑著____的經驗，他很快就找到了解決問題的方法。", options: ["任人唯賢", "耳濡目染", "老馬識途", "各執一詞"], ans: 2, base: "老馬識途" },
+                    { q: "被當眾揭穿謊言後，他____地大罵起來。", options: ["有恃無恐", "老羞成怒", "衣衫襤褸", "交頭接耳"], ans: 1, base: "老羞成怒" },
+                    { q: "在音樂世家長大，他____，也彈得一手好琴。", options: ["耳濡目染", "耳聞目睹", "先睹為快", "名落孫山"], ans: 0, base: "耳濡目染" },
+                    { q: "他因為背後有高層靠山，所以____，行事跋扈。", options: ["老成持重", "因循守舊", "有恃無恐", "江郎才盡"], ans: 2, base: "有恃無恐" },
+                    { q: "為了預防颱風停電，我們買了手電筒以求____。", options: ["有備無患", "任人唯賢", "各執一詞", "因噎廢食"], ans: 0, base: "有備無患" },
+                    { q: "對於這場車禍的發生原因，雙方駕駛____，互不相讓。", options: ["交頭接耳", "各執一詞", "因循守舊", "老成持重"], ans: 1, base: "各執一詞" },
+                    { q: "那群乞丐____地縮在街角，看起來非常可憐。", options: ["包羅萬象", "衣衫襤褸", "出類拔萃", "有備無患"], ans: 1, base: "衣衫襤褸" }
+                ]
+            }
+        };
+
+        let currentTerm = 1;
+        let currentMode = 'study';
+        let activeTestQuestions = [];
+
+        // ==========================================
+        // 核心邏輯
+        // ==========================================
+        
+        // 陣列洗牌函數
+        function shuffleArray(array) {
+            let curId = array.length;
+            while (0 !== curId) {
+                let randId = Math.floor(Math.random() * curId);
+                curId -= 1;
+                let tmp = array[curId];
+                array[curId] = array[randId];
+                array[randId] = tmp;
+            }
+            return array;
+        }
+
+        // 開關典故視窗
+        function openModal(termIdx, idiomIdx) {
+            const item = termData[termIdx].idioms[idiomIdx];
+            document.getElementById('modal-word').innerText = item.word;
+            document.getElementById('modal-exp').innerText = item.exp;
+            document.getElementById('modal-origin').innerText = item.origin;
+            document.getElementById('modal-story').innerText = item.story;
+            document.getElementById('idiom-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('idiom-modal').classList.add('hidden');
+        }
+
+        // 切換學期
+        function selectTerm(term) {
+            currentTerm = term;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`tab-${term}`).classList.add('active');
+            renderContent();
+        }
+
+        // 切換模式
+        function selectMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.sub-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`mode-${mode}`).classList.add('active');
+            renderContent();
+        }
+
+        // 渲染主要畫面
+        function renderContent() {
+            const area = document.getElementById('content-area');
+            area.innerHTML = ''; 
+            const data = termData[currentTerm];
+
+            // 模式：自學
+            if (currentMode === 'study') {
+                let html = `<h2 class="text-2xl font-bold mb-4 text-blue-800">${data.title} - 成語自學區 <span class="text-base text-gray-500 font-normal">(點擊卡片可放大看典故)</span></h2><div class="grid md:grid-cols-2 gap-6">`;
+                data.idioms.forEach((item, index) => {
+                    html += `
+                    <div onclick="openModal(${currentTerm}, ${index})" class="idiom-card bg-blue-50 border-l-4 border-blue-500 p-5 rounded shadow-sm flex flex-col justify-between cursor-pointer transition">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800 flex items-center justify-between">
+                                ${item.word}
+                                <span class="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded font-normal">🔍 點我看典故</span>
+                            </h3>
+                            <p class="text-gray-700 mt-2 line-clamp-2"><strong>解釋：</strong>${item.exp}</p>
+                        </div>
+                    </div>`;
+                });
+                html += `</div>`;
+                area.innerHTML = html;
+            
+            // 模式：測驗
+            } else if (currentMode === 'test1' || currentMode === 'test2' || currentMode === 'test3') {
+                let pool = [];
+                let title = "";
+                
+                if (currentMode === 'test1') {
+                    pool = data.test1;
+                    title = "測驗一：字詞辨識 (選出缺少的正確字詞)";
+                } else if (currentMode === 'test3') {
+                    pool = data.test3;
+                    title = "測驗三：成語應用 (選出適合句子的成語)";
+                } else if (currentMode === 'test2') {
+                    // 測驗二：動態生成成語配對題庫
+                    title = "測驗二：成語配對 (根據解釋選出正確的成語)";
+                    let allIdioms = data.idioms;
+                    pool = allIdioms.map(item => {
+                        let wrongOptions = allIdioms.filter(x => x.word !== item.word);
+                        wrongOptions = shuffleArray([...wrongOptions]).slice(0, 3).map(x => x.word);
+                        let options = [item.word, ...wrongOptions];
+                        options = shuffleArray(options);
+                        return {
+                            q: `請問「<span class="text-blue-700 font-bold">${item.exp}</span>」是以下哪一個成語的解釋？`,
+                            options: options,
+                            ans: options.indexOf(item.word),
+                            base: item.word
+                        };
+                    });
+                }
+
+                if(pool.length === 0) {
+                    area.innerHTML = `<p class="text-gray-500 text-center py-10">此學期的測驗題目尚待擴充。</p>`;
+                    return;
+                }
+
+                // 去重複抽題機制：確保10題對應10個不同的成語 (base 不重複)
+                let shuffledPool = shuffleArray([...pool]);
+                activeTestQuestions = [];
+                let usedBase = new Set();
+                
+                for (let t of shuffledPool) {
+                    if (!usedBase.has(t.base)) {
+                        usedBase.add(t.base);
+                        activeTestQuestions.push(t);
+                    }
+                    if (activeTestQuestions.length === 10) break;
+                }
+                
+                if (activeTestQuestions.length < 10) {
+                    for (let t of shuffledPool) {
+                        if (activeTestQuestions.length === 10) break;
+                        if (!activeTestQuestions.includes(t)) activeTestQuestions.push(t);
+                    }
+                }
+                
+                let html = `<h2 class="text-2xl font-bold mb-4 text-blue-800">${data.title} - ${title}</h2>`;
+                html += `<p class="text-gray-600 mb-6 bg-yellow-50 p-3 rounded border border-yellow-200 shadow-sm text-sm">💡 系統提示：題目已從題庫隨機抽出，每次測驗皆不相同，且保證10題考核10個不同的成語。滿分為 10 分。</p>`;
+                
+                // 表單開始
+                html += `<form id="quiz-form" onsubmit="submitQuiz(event)" class="space-y-6">`;
+                
+                // 學生資料輸入區塊 (加入 required，交卷必填)
+                html += `
+                <div class="bg-indigo-50 border border-indigo-200 p-5 rounded-lg mb-6 shadow-sm">
+                    <h3 class="font-bold text-indigo-800 mb-3 flex items-center">👤 學生資料 (交卷前必填)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <input type="text" id="student-class" placeholder="班別 (例: 1A)" class="p-2.5 rounded border focus:ring-2 focus:ring-indigo-300 outline-none" value="${currentStudent.className}" required>
+                        <input type="number" id="student-no" placeholder="學號 (例: 25)" class="p-2.5 rounded border focus:ring-2 focus:ring-indigo-300 outline-none" value="${currentStudent.classNo}" required>
+                        <input type="text" id="student-name" placeholder="姓名 (例: 陳大文)" class="p-2.5 rounded border focus:ring-2 focus:ring-indigo-300 outline-none" value="${currentStudent.studentName}" required>
+                    </div>
+                </div>`;
+
+                // 題目區塊
+                activeTestQuestions.forEach((t, index) => {
+                    html += `
+                    <div class="bg-gray-50 p-5 rounded shadow-sm border border-gray-100 hover:border-blue-300 transition">
+                        <p class="text-lg mb-4 leading-relaxed"><strong>${index + 1}.</strong> ${t.q}</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">`;
+                    t.options.forEach((opt, optIdx) => {
+                        html += `
+                            <label class="flex items-center p-3 bg-white border rounded shadow-sm cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition">
+                                <input type="radio" name="q${index}" value="${optIdx}" class="mr-3 w-4 h-4 text-blue-600 focus:ring-blue-500" required>
+                                <span class="font-medium text-gray-800">${opt}</span>
+                            </label>`;
+                    });
+                    html += `</div></div>`;
+                });
+                
+                html += `<button type="submit" id="submit-test-btn" class="w-full bg-blue-600 text-white font-bold py-4 rounded-lg shadow-md hover:bg-blue-700 transition transform hover:scale-[1.01] text-lg mt-4">交卷並看結果！</button>`;
+                html += `</form><div id="result-area" class="mt-8 mb-6 text-center"></div>`;
+                area.innerHTML = html;
+            }
+        }
+
+        // 交卷邏輯與傳送成績
+        function submitQuiz(e) {
+            e.preventDefault();
+            
+            // 記錄學生資料
+            const classNameInput = document.getElementById('student-class').value;
+            const classNoInput = document.getElementById('student-no').value;
+            const studentNameInput = document.getElementById('student-name').value;
+            
+            currentStudent = {
+                className: classNameInput,
+                classNo: classNoInput,
+                studentName: studentNameInput
+            };
+
+            const form = new FormData(e.target);
+            let score = 0;
+            let resultDetailsHtml = '<div class="mt-6 space-y-4 text-left text-base font-normal">';
+
+            // 對答案
+            activeTestQuestions.forEach((t, index) => {
+                const userAnswer = parseInt(form.get(`q${index}`));
+                const isCorrect = (userAnswer === t.ans);
+                
+                if (isCorrect) score += 1; 
+                
+                let correctText = t.options[t.ans];
+                let userText = isNaN(userAnswer) ? "未作答" : t.options[userAnswer];
+                let cardClass = isCorrect ? "bg-green-50 border-green-300" : "bg-red-50 border-red-300";
+                
+                resultDetailsHtml += `
+                <div class="p-5 rounded-lg border-2 ${cardClass}">
+                    <p class="text-gray-800 mb-3 font-medium">${index + 1}. ${t.q}</p>
+                    <div class="flex flex-col sm:flex-row sm:gap-6 gap-2">
+                        <p class="text-gray-700">你的答案：<span class="font-bold text-lg ${isCorrect ? 'text-green-700' : 'text-red-600 line-through'}">${userText}</span></p>
+                        ${!isCorrect ? `<p class="text-gray-700">正確答案：<span class="font-bold text-lg text-green-700">${correctText}</span></p>` : ''}
+                    </div>
+                </div>`;
+            });
+            resultDetailsHtml += '</div>';
+
+            // 準備傳送給 GAS 的資料
+            const testNames = { 'test1': '字詞辨識', 'test2': '成語配對', 'test3': '成語應用' };
+            const payload = {
+                className: currentStudent.className,
+                classNo: currentStudent.classNo,
+                studentName: currentStudent.studentName,
+                term: `第 ${currentTerm} 學期`,
+                testType: testNames[currentMode],
+                score: score,
+                maxScore: 10
+            };
+
+            // 介面鎖定
+            const submitBtn = document.getElementById('submit-test-btn');
+            submitBtn.innerText = "成績傳送中，請稍候...";
+            submitBtn.disabled = true;
+            submitBtn.classList.replace("bg-blue-600", "bg-gray-400");
+            submitBtn.classList.replace("hover:bg-blue-700", "hover:bg-gray-400");
+            document.querySelectorAll('input[type="radio"], input[type="text"], input[type="number"]').forEach(input => input.disabled = true);
+
+            // 定義顯示最終結果的函數
+            const showFinalResult = (fetchMessage = "") => {
+                const resultArea = document.getElementById('result-area');
+                let scoreMessage = '';
+                
+                if(score === 10) {
+                    scoreMessage = `<div class="text-4xl font-extrabold text-green-600 mb-2">太棒了！你的分數是 ${score} / 10 滿分！🎉</div>`;
+                } else if(score >= 6) {
+                    scoreMessage = `<div class="text-4xl font-extrabold text-blue-600 mb-2">表現不錯！你的分數是 ${score} / 10。👍</div>`;
+                } else {
+                    scoreMessage = `<div class="text-4xl font-extrabold text-red-600 mb-2">你的分數是 ${score} / 10。💪</div>`;
+                }
+                
+                let fetchWarningHtml = fetchMessage ? `<p class="text-sm text-yellow-600 bg-yellow-100 p-2 rounded mb-4 inline-block">${fetchMessage}</p>` : '';
+
+                let retryBtnHtml = `
+                    <div class="mt-6 mb-8">
+                        <button onclick="renderContent()" class="w-full md:w-1/2 mx-auto px-8 bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 shadow-lg transition transform hover:-translate-y-1 text-lg flex justify-center items-center gap-2">
+                            <span>🔄 重新測驗 (抽取全新題目)</span>
+                        </button>
+                        <p class="text-gray-500 text-sm mt-3">覺得這套題目太簡單？按上面按鈕挑戰新的隨機組合！</p>
+                    </div>
+                `;
+
+                submitBtn.style.display = 'none';
+                resultArea.innerHTML = scoreMessage + fetchWarningHtml + retryBtnHtml + `<h3 class="text-gray-600 mt-6 font-bold text-xl border-b pb-2 text-left">📝 對錯詳情分析</h3>` + resultDetailsHtml;
+                resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            };
+
+            // 執行 Fetch 發送數據到 Google Sheet
+            if (GAS_URL === "在此處貼上你的_GOOGLE_APPS_SCRIPT_網址" || GAS_URL === "") {
+                // 如果張SIR還沒填寫 URL，顯示提示但依舊展示結果
+                setTimeout(() => {
+                    showFinalResult("⚠️ 提示：因為張SIR尚未設定真實的 GAS 網址，本次成績未傳送至後台，但你仍可查看結果！");
+                }, 800); // 假裝載入一下
+            } else {
+                fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify(payload)
+                })
+                .then(response => response.json())
+                .then(result => {
+                    showFinalResult(); // 成功則直接顯示結果
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    showFinalResult("⚠️ 提示：成績傳送至後台失敗，請檢查網絡連線。");
+                });
+            }
+        }
+
+        // 初始化載入
+        selectTerm(1);
+        selectMode('study');
+    </script>
+</body>
+</html>
